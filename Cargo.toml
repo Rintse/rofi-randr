@@ -1,0 +1,21 @@
+[package]
+name = "rofi-randr"
+version = "0.1.0"
+authors = [ "Rintse" ]
+edition = "2021"
+description = "Rofi script to manage ResizeAndRotate (randr) settings on various platforms"
+license = "MIT"
+repository = "https://github.com/Rintse/rofi-randr"
+keywords = ["xrandr", "libxrandr", "sway", "swayipc", "wayland", "display", "linux"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+strum = "0.24.1"
+strum_macros = "0.24.3"
+x11 = "2.21.0"
+thiserror  = "1.0"
+itertools = "0.10.5"
+wayland-client = "0.30.2"
+swayipc = "3.0.1"
+xrandr = "0.2.0"
