@@ -6,7 +6,7 @@ edition = "2021"
 description = "Rofi script to manage ResizeAndRotate (randr) settings on various platforms"
 license = "MIT"
 repository = "https://github.com/Rintse/rofi-randr"
-keywords = ["xrandr", "libxrandr", "sway", "swayipc", "wayland", "display", "linux"]
+keywords = ["xrandr", "sway", "wayland", "display", "linux"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
