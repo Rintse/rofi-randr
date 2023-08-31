@@ -1,7 +1,7 @@
 use crate::action::ParseCtx;
 use crate::ParseResult;
 use crate::Action;
-use crate::dpy_backend::DisplayBackend;
+use crate::backend::DisplayBackend;
 use std::{str::FromStr, fmt};
 use crate::err::{ParseError, AppError};
 

@@ -3,8 +3,9 @@ A (massively overengineered) [rofi script](https://man.archlinux.org/man/rofi-sc
 to manage randr (Resize And Rotate) features of some display servers. 
 
 ## Backends
-This program supports multiple backends. It automatically determines which one to use, 
-but you can override this behaviour by setting `DPY_SERVER_OVERRIDE` in your environment.
+This program supports multiple backends. It automatically determines which one 
+to use, but you can override this behaviour by setting `DISPLAY_SERVER_OVERRIDE` 
+in your environment.
 
 * `libxrandr` - Uses the [xrandr crate](https://crates.io/crates/xrandr) 
 to call libxrandr bindings.

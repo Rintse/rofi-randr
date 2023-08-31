@@ -3,8 +3,8 @@ pub mod resolution;
 pub mod position;
 pub mod rate;
 
-use crate::dpy_backend::DisplayBackend;
-use crate::dpy_backend::OutputEntry;
+use crate::backend::DisplayBackend;
+use crate::backend::OutputEntry;
 use crate::rofi::List as RofiList;
 use std::collections::VecDeque;
 use itertools::Itertools;

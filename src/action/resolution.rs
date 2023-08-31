@@ -1,4 +1,4 @@
-use crate::{err::{ParseError, AppError}, dpy_backend::DisplayBackend};
+use crate::{err::{ParseError, AppError}, backend::DisplayBackend};
 use std::str::FromStr;
 
 use super::{ParseResult, Action, ParseCtx};

@@ -126,23 +126,8 @@ pub enum Disable {
     NoOutput(String),
 }
 
-/// Helps keep error propegation in the backend short
-/// # Arguments
-/// * `err_type` - the error that should be built from the backend error,
-///     e.g. `GetResolutions`.
-/// * `backend ` - The backend from which the error came, e.g. `XrandrCLI`.
-/// * `args` - Potential arguments to the `backend` error type.
-#[macro_export]
-macro_rules! backend_call {
-    ( $err_type:ident, $backend:ident, $( $args:expr ),*) => {
-        super::err::DpyServerError::$err_type(
-            super::err::$err_type::BackendCall(
-                super::err::BackendCall::$backend($($args)*)))
-    };
-}
-
 #[derive(thiserror::Error, Debug)]
-pub enum DpyServerError { 
+pub enum Error { 
     #[error("Could not find fitting display server")]
     GetBackend,
     
@@ -179,3 +164,19 @@ pub enum DpyServerError {
     #[error("Could not disable display")]
     Disable( #[from] Disable ),
 }
+
+/// Helps keep error propegation in the backend short
+/// # Arguments
+/// * `err_type` - the error that should be built from the backend error,
+///     e.g. `GetResolutions`.
+/// * `backend ` - The backend from which the error came, e.g. `XrandrCLI`.
+/// * `args` - Potential arguments to the `backend` error type.
+#[macro_export]
+macro_rules! backend_call {
+    ( $err_type:ident, $backend:ident, $( $args:expr ),*) => {
+        super::err::Error::$err_type(
+            super::err::$err_type::BackendCall(
+                super::err::BackendCall::$backend($($args)*)))
+    };
+}
+

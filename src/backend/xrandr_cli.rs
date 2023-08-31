@@ -8,7 +8,7 @@ use crate::action::rate::Rate;
 use crate::action::rotate::Rotation;
 use crate::action::resolution::Resolution;
 use crate::backend_call as backend_call_err;
-use crate::dpy_backend::err::DpyServerError;
+use crate::backend::Error as BackendError;
 
 use super::{OutputEntry, RateEntry, ResolutionEntry};
 
@@ -63,7 +63,7 @@ fn parse_mode_line(line: &str) -> (&str, Vec<&str>) {
 impl XrandrState {
     // The new() constructor calls `xrandr` and parses the result
     // TODO: this is very rough for now, should have many more checks
-    fn new() -> Result<Self, DpyServerError> {
+    fn new() -> Result<Self, BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let res = cmd.output()
             .map_err(|e| backend_call_err!(GetOutputs, XrandrCLI, e.to_string()))?;
@@ -112,7 +112,7 @@ impl XrandrState {
 pub struct Backend { state: XrandrState }
 
 impl Backend {
-    pub fn new() -> Result<Self, DpyServerError> { 
+    pub fn new() -> Result<Self, BackendError> { 
         Ok(Self{ state: XrandrState::new()? })
     }
 }
@@ -185,7 +185,8 @@ impl super::DisplayBackend for Backend {
         ]
     }
 
-    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, DpyServerError> {
+    fn get_outputs(&mut self) 
+    -> Result<Vec<OutputEntry>, BackendError> {
         let entries = self.state.outputs.iter()
             .map(|o| OutputEntry { 
                 name: o.name.clone(),
@@ -197,7 +198,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn get_resolutions(&mut self, output_name: &str) 
-    -> Result<Vec<ResolutionEntry>, DpyServerError> {
+    -> Result<Vec<ResolutionEntry>, BackendError> {
         let output = self.state.outputs.iter()
             .find(|o| o.name == output_name)
             .ok_or(super::err::GetResolutions::NoOutput(
@@ -216,7 +217,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_resolution(&mut self, output_name: &str, res: &Resolution) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args([
             "--output", output_name,
@@ -224,11 +225,11 @@ impl super::DisplayBackend for Backend {
         ]);
 
         let err_f = |s: String| backend_call_err!(SetResolution, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
 
     fn get_rates(&mut self, output_name: &str) 
-    -> Result<Vec<RateEntry>, DpyServerError> {
+    -> Result<Vec<RateEntry>, BackendError> {
         let output = self.state.outputs.iter()
             .find(|o| o.name == output_name)
             .ok_or(super::err::GetRates::NoOutput(output_name.to_string()))?;
@@ -250,7 +251,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn set_rate(&mut self, output_name: &str, rate: Rate) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cur_res = self.state.outputs.iter()
             .find(|o| o.name == output_name)
@@ -266,11 +267,11 @@ impl super::DisplayBackend for Backend {
         ]);
         
         let err_f = |s: String| backend_call_err!(SetRate, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
 
     fn set_rotation(&mut self, output_name: &str, rotation: &Rotation)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args([
             "--output", output_name, 
@@ -278,11 +279,11 @@ impl super::DisplayBackend for Backend {
         ]);
 
         let err_f = |s: String| backend_call_err!(SetRotation, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
     
     fn set_position(&mut self, output_name: &str, pos: &Position)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args([
             "--output", output_name,
@@ -291,41 +292,42 @@ impl super::DisplayBackend for Backend {
         ]);
         
         let err_f = |s: String| backend_call_err!(SetPosition, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
     
-    fn set_primary(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn set_primary(&mut self, output_name: &str) 
+    -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args(["--output", output_name, "--primary"]);
 
         let err_f = |s: String| backend_call_err!(SetPrimary, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
     
-    fn enable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn enable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args(["--output", output_name, "--auto"]);
 
         let err_f = |s: String| backend_call_err!(Enable, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
     
-    fn disable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn disable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
         let cmd = cmd.args(["--output", output_name, "--off"]);
 
         let err_f = |s: String| backend_call_err!(Disable, XrandrCLI, s);
-        run_and_check(cmd, err_f)
+        run_cmd_and_check(cmd, err_f)
     }
 }
 
 // Helper function to improve the readibility of the error handling in the
 // interface functions above. Relies on the fact that we only put strings
 // inside the errors for this backend.
-fn run_and_check(
+fn run_cmd_and_check(
     cmd: &mut std::process::Command, 
-    err_f: fn(s: String)->DpyServerError
-) -> Result<(),DpyServerError>
+    err_f: fn(s: String)->BackendError
+) -> Result<(), BackendError>
 {
     let res = cmd.output()
         .map_err(|_| err_f("Could not execute command".to_string()))?;

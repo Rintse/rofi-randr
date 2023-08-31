@@ -1,6 +1,5 @@
 // Top level errors
 
-use crate::dpy_backend::err::DpyServerError;
 use xrandr::XrandrError;
 use thiserror::Error;
 
@@ -29,7 +28,7 @@ pub enum ParseError {
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Something went wrong in the display backend:\n{source}") ]
-    BackendErr { #[from] source: DpyServerError },
+    BackendErr { #[from] source: crate::backend::Error },
 
     #[error("Call to libxrandr failed") ]
     Lib { #[from] source: XrandrError },

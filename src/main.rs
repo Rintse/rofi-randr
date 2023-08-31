@@ -2,9 +2,8 @@ mod action;
 mod icon;
 mod err;
 mod rofi;
-mod dpy_backend;
+mod backend;
 
-use dpy_backend::{backend_from_name, determine_backend};
 use action::{Action, ParseResult};
 use err::AppError;
 
@@ -36,10 +35,10 @@ fn get_args() -> VecDeque<String> {
 }
 
 fn main() -> Result<(), AppError> {
-    // Allow override of automatic backend trough DPY_SERVER_OVERRIDE
-    let mut backend = match env::var("DPY_SERVER_OVERRIDE") {
-        Ok(name) => backend_from_name(&name)?,
-        Err(_) => determine_backend()?,
+    // Allow override of automatic backend trough env var
+    let mut backend = match env::var("DISPLAY_SERVER_OVERRIDE") {
+        Ok(name) => backend::from_name(&name)?,
+        Err(_) => backend::determine()?,
     };
 
     match Action::parse(&mut backend, get_args())? {

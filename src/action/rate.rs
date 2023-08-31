@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use crate::{err::ParseError, dpy_backend::DisplayBackend};
+use crate::{err::ParseError, backend::DisplayBackend};
 use crate::AppError;
 use super::{ParseResult, Action, ParseCtx};
 

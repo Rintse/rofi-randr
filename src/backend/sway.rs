@@ -4,7 +4,7 @@ use crate::action::rate::Rate;
 use crate::action::rotate::Rotation;
 use crate::action::resolution::Resolution;
 use crate::backend_call as backend_call_err;
-use crate::dpy_backend::err::DpyServerError;
+use crate::backend::Error as BackendError;
 use swayipc::Connection;
 
 use super::{OutputEntry, RateEntry, ResolutionEntry};
@@ -12,9 +12,9 @@ use super::{OutputEntry, RateEntry, ResolutionEntry};
 pub struct Backend { conn: Connection }
 
 impl Backend {
-    pub fn new() -> Result<Self, DpyServerError> { 
+    pub fn new() -> Result<Self, BackendError> { 
         let conn = swayipc::Connection::new()
-            .map_err(|_| DpyServerError::GetBackend)?;
+            .map_err(|_| BackendError::GetBackend)?;
 
         Ok(Self { conn })
     }
@@ -51,7 +51,7 @@ impl super::DisplayBackend for Backend {
         ]
     }
 
-    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, DpyServerError> {
+    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, BackendError> {
         let sway_outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(GetOutputs, SwayIPC, e))?;
 
@@ -66,7 +66,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn get_resolutions(&mut self, output_name: &str) 
-    -> Result<Vec<ResolutionEntry>, DpyServerError> {
+    -> Result<Vec<ResolutionEntry>, BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(GetResolutions, SwayIPC, e))?;
         let output = outputs.iter()
@@ -92,7 +92,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_resolution(&mut self, output_name: &str, res: &Resolution) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(SetResolution, SwayIPC, e))?;
         let output = outputs.iter()
@@ -117,7 +117,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn get_rates(&mut self, output_name: &str)
-    -> Result<Vec<RateEntry>, DpyServerError> {
+    -> Result<Vec<RateEntry>, BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(GetRates, SwayIPC, e))?;
         let output = outputs.iter()
@@ -145,7 +145,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn set_rate(&mut self, output_name: &str, rate: Rate) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(SetRate, SwayIPC, e))?;
         let output = outputs.iter()
@@ -176,7 +176,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_rotation(&mut self, output_name: &str, rotation: &Rotation)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let angle_str = match rotation {
             Rotation::Normal      => "0",
             Rotation::Left        => "90",
@@ -202,7 +202,7 @@ impl super::DisplayBackend for Backend {
     // This is not really supported in sway-output, but it can be easily 
     // done through the geometry of the displays + the pos command
     fn set_position(&mut self, output_name: &str, pos: &Position)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let Position { output_s: rel_output, relation, ..} = pos;
         
         let outputs = self.conn.get_outputs()
@@ -235,11 +235,11 @@ impl super::DisplayBackend for Backend {
         Ok(())
     }
     
-    fn set_primary(&mut self, _output_name: &str) -> Result<(), DpyServerError> {
+    fn set_primary(&mut self, _output_name: &str) -> Result<(), BackendError> {
         unimplemented!("Not supported in swayipc");
     }
     
-    fn enable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn enable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(Enable, SwayIPC, e))?;
         let output = outputs.iter()
@@ -255,7 +255,7 @@ impl super::DisplayBackend for Backend {
         Ok(())
     }
     
-    fn disable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn disable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let outputs = self.conn.get_outputs()
             .map_err(|e| backend_call_err!(Disable, SwayIPC, e))?;
         let output = outputs.iter()

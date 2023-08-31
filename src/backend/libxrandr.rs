@@ -5,7 +5,7 @@ use crate::action::rate::Rate;
 use crate::action::rotate::Rotation;
 use crate::action::resolution::Resolution;
 use crate::backend_call as backend_call_err;
-use crate::dpy_backend::err::DpyServerError;
+use crate::backend::Error as BackendError;
 use xrandr::XHandle;
 use xrandr::ScreenResources;
 
@@ -14,7 +14,7 @@ use super::{OutputEntry, RateEntry, ResolutionEntry};
 pub struct Backend { handle: XHandle, res: ScreenResources }
 
 impl Backend {
-    pub fn new() -> Result<Self, DpyServerError> { 
+    pub fn new() -> Result<Self, BackendError> { 
         let mut handle = XHandle::open()
             .map_err(|e| backend_call_err!(GetOutputs, LibXrandr, e))?;
         let res = ScreenResources::new(&mut handle)
@@ -59,7 +59,7 @@ impl super::DisplayBackend for Backend {
         ]
     }
 
-    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, DpyServerError> {
+    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(GetOutputs, LibXrandr, e))?;
 
@@ -74,7 +74,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn get_resolutions(&mut self, output: &str) 
-    -> Result<Vec<ResolutionEntry>, DpyServerError> {
+    -> Result<Vec<ResolutionEntry>, BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(GetResolutions, LibXrandr, e))?;
 
@@ -107,7 +107,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_resolution(&mut self, output_name: &str, res: &Resolution) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(SetResolution, LibXrandr, e))?;
 
@@ -127,7 +127,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn get_rates(&mut self, output_name: &str) 
-    -> Result<Vec<RateEntry>, DpyServerError> {
+    -> Result<Vec<RateEntry>, BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(GetRates, LibXrandr, e))?;
 
@@ -154,7 +154,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_rate(&mut self, output_name: &str, rate: Rate) 
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(SetRate, LibXrandr, e))?;
         let output = outputs.iter()
@@ -180,7 +180,7 @@ impl super::DisplayBackend for Backend {
     }
 
     fn set_rotation(&mut self, output_name: &str, rotation: &Rotation)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(SetRotation, LibXrandr, e))?;
 
@@ -195,7 +195,7 @@ impl super::DisplayBackend for Backend {
     }
     
     fn set_position(&mut self, output_name: &str, pos: &Position)
-    -> Result<(), DpyServerError> {
+    -> Result<(), BackendError> {
         let Position { output_s: rel_output, relation, ..} = pos;
         
         let outputs = self.res.outputs(&mut self.handle)
@@ -218,7 +218,7 @@ impl super::DisplayBackend for Backend {
         Ok(())
     }
     
-    fn set_primary(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn set_primary(&mut self, output_name: &str) -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(SetPrimary, LibXrandr, e))?;
 
@@ -230,7 +230,7 @@ impl super::DisplayBackend for Backend {
         Ok(())
     }
     
-    fn enable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn enable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(Enable, LibXrandr, e))?;
 
@@ -244,7 +244,7 @@ impl super::DisplayBackend for Backend {
         Ok(())
     }
     
-    fn disable(&mut self, output_name: &str) -> Result<(), DpyServerError> {
+    fn disable(&mut self, output_name: &str) -> Result<(), BackendError> {
         let outputs = self.res.outputs(&mut self.handle)
             .map_err(|e| backend_call_err!(Disable, LibXrandr, e))?;
 

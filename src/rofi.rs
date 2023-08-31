@@ -3,7 +3,7 @@
 use strum::IntoEnumIterator;
 
 use crate::action::resolution::Resolution;
-use crate::dpy_backend::{OutputEntry, DisplayBackend, RateEntry, ResolutionEntry};
+use crate::backend::{OutputEntry, DisplayBackend, RateEntry, ResolutionEntry};
 use crate::err::AppError;
 use crate::icon::Icon;
 use crate::action::{

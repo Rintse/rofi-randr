@@ -1,44 +1,45 @@
-use crate::action::Operation;
-use crate::action::position::{Position, Relation};
-use crate::action::rate::Rate;
-use crate::action::rotate::Rotation;
-use crate::action::resolution::Resolution;
-use self::err::DpyServerError;
-use std::env;
-
 pub mod err;
 mod libxrandr;
 mod xrandr_cli;
 mod sway;
 
-pub(crate) fn backend_from_name(name: &str) 
--> Result<Box<dyn DisplayBackend>, DpyServerError> {
+use crate::action::Operation;
+use crate::action::position::{Position, Relation};
+use crate::action::rate::Rate;
+use crate::action::rotate::Rotation;
+use crate::action::resolution::Resolution;
+pub(crate) use self::err::Error as Error;
+use std::env;
+
+
+pub(crate) fn from_name(name: &str) 
+-> Result<Box<dyn DisplayBackend>, Error> {
     match name {
         "libxrandr" => Ok(Box::new(libxrandr::Backend::new()?)),
         "xrandr_cli" => Ok(Box::new(xrandr_cli::Backend::new()?)),
         "swayipc" => Ok(Box::new(sway::Backend::new()?)),
-        _ => Err(DpyServerError::GetBackend)
+        _ => Err(Error::GetBackend)
     }
 }
 
 // TODO: this is a bit hacky atm
 /// Gets the appropriate backend based on environment variables
-pub(crate) fn determine_backend() 
--> Result<Box<dyn DisplayBackend>, DpyServerError> {
+pub(crate) fn determine() 
+-> Result<Box<dyn DisplayBackend>, Error> {
     match env::var("XDG_SESSION_TYPE") {
         Ok(name) => match name.as_str() {
-            "x11" => backend_from_name("libxrandr"),
+            "x11" => from_name("libxrandr"),
             "wayland" => match env::var("SWAYSOCK") {
-                Ok(_) => backend_from_name("swayipc"),
-                Err(_) => Err(DpyServerError::GetBackend),
+                Ok(_) => from_name("swayipc"),
+                Err(_) => Err(Error::GetBackend),
             }
-            _ => Err(DpyServerError::GetBackend),
+            _ => Err(Error::GetBackend),
         },
-        Err(_) => Err(DpyServerError::GetBackend),
+        Err(_) => Err(Error::GetBackend),
     }
 }
 
-// Defines the API that this application wants from the dpy server
+/// Defines the API that this application wants with the display server
 pub trait DisplayBackend {
     // The supported operations for this backend
     // Takes output as argument because ops might change depending on its state
@@ -47,31 +48,31 @@ pub trait DisplayBackend {
     // This is needed because sway does not really support mirroring
     fn supported_relations(&mut self) -> Vec<Relation>;
 
-    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, DpyServerError>;
+    fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, Error>;
 
     fn get_resolutions(&mut self, output_name: &str) 
-    -> Result<Vec<ResolutionEntry>, DpyServerError>;
+    -> Result<Vec<ResolutionEntry>, Error>;
     
     fn set_resolution(&mut self, output_name: &str, res: &Resolution) 
-    -> Result<(), DpyServerError>;
+    -> Result<(), Error>;
 
     fn get_rates(&mut self, output_name: &str) 
-    -> Result<Vec<RateEntry>, DpyServerError>;
+    -> Result<Vec<RateEntry>, Error>;
     
     fn set_rate(&mut self, output_name: &str, rate: Rate) 
-    -> Result<(), DpyServerError>;
+    -> Result<(), Error>;
     
     fn set_rotation(&mut self, output_name: &str, rotation: &Rotation)
-    -> Result<(), DpyServerError>;
+    -> Result<(), Error>;
     
     fn set_position(&mut self, output_name: &str, pos: &Position)
-    -> Result<(), DpyServerError>;
+    -> Result<(), Error>;
     
-    fn set_primary(&mut self, output_name: &str) -> Result<(), DpyServerError>;
+    fn set_primary(&mut self, output_name: &str) -> Result<(), Error>;
     
-    fn enable(&mut self, output_name: &str) -> Result<(), DpyServerError>;
+    fn enable(&mut self, output_name: &str) -> Result<(), Error>;
     
-    fn disable(&mut self, output_name: &str) -> Result<(), DpyServerError>;
+    fn disable(&mut self, output_name: &str) -> Result<(), Error>;
 }
 
 #[derive(Debug,Clone)]
