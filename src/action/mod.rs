@@ -85,7 +85,7 @@ pub enum ParseResult<A> {
 // TODO: is there a better way to do this?
 impl ParseResult<Action> {
     // Constructors. lots of duplication here..
-    fn new_enable(output : String) -> Self {
+    fn enable(output : String) -> Self {
         Self::Done( Action { output, op: Operation::Enable } )
     }
 
@@ -123,10 +123,9 @@ impl ParseResult<Action> {
 // xrandr lets you disable your last display, leaving your system in a
 // hard to recover state. This function prompts you on whether you really
 // want to disable your last display.
-fn confirm_last(
+fn confirm_last_display_disable(
     outputs : &[OutputEntry], mut ctx: ParseCtx) 
 -> Result<ParseResult<Action>, AppError> {
-    // Make sure we are not disabling our last display
     if let Some(confirmation) = ctx.args.pop_front() {
         return match confirmation.as_str() {
             "Yes" => Ok(ParseResult::disable(ctx.output)),
@@ -135,12 +134,12 @@ fn confirm_last(
     }
 
     // There are no other displays that are connected: prompt to confirm
-    if !outputs.iter().any(|o| o.name != ctx.output && o.connected) {
+    if !outputs.iter().any(|o| o.name != ctx.output && o.enabled) {
         return Ok(ParseResult::confirm_disable_list())
     }
 
     // Otherwise, immediately disable.
-    Ok(ParseResult::disable(ctx.output))
+    Ok(ParseResult::enable(ctx.output))
        
 }
 
@@ -180,8 +179,8 @@ impl Action {
 
         let action_p : ParseResult<Self> = match op_str.as_str() {
             // Nullary actions, return the action
-            "Enable"        => ParseResult::new_enable(ctx.output),
-            "Disable"       => confirm_last(&outputs, ctx)?,
+            "Enable"        => ParseResult::enable(ctx.output),
+            "Disable"       => confirm_last_display_disable(&outputs, ctx)?,
             "Make primary"  => ParseResult::primary(ctx.output),
 
             // Unary/binary, parse further
