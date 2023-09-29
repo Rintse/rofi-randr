@@ -47,8 +47,5 @@ pub enum AppError {
 
     #[error("Invalid operation '{0}' on disabled display") ]
     Disabled(String),
-
-    #[error("Operation cancelled by user")]
-    Cancel,
 }
 

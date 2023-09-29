@@ -129,7 +129,7 @@ fn confirm_last_display_disable(
     if let Some(confirmation) = ctx.args.pop_front() {
         return match confirmation.as_str() {
             "Yes" => Ok(ParseResult::disable(ctx.output)),
-            _ => Err(AppError::Cancel), // TODO: this is not really an error
+            _ => unreachable!("There should only be 'Yes' in previous menu")
         };
     }
 

@@ -205,10 +205,18 @@ impl ParseResult<Action> {
         Self::Next(List {
             prompt: Some("Disable last active output?".to_string()),
             list : vec![
-                ListItem { text : "No".to_string(), icon: Some(Icon::Cancel), 
-                    ..Default::default() },
-                ListItem { text : "Yes".to_string(), icon: Some(Icon::Apply), 
-                    ..Default::default() }
+                ListItem { 
+                    text : "Yes".to_string(), 
+                    icon: Some(Icon::Apply), 
+                    ..Default::default() 
+                },
+                ListItem { 
+                    text: "No".to_string(),
+                    comments : vec!["Quit to cancel".to_string()], 
+                    icon: Some(Icon::Cancel), 
+                    non_selectable: true,
+                    ..Default::default() 
+                }
             ],
             ..Default::default()
         })
