@@ -137,10 +137,9 @@ fn confirm_last_display_disable(
     if !outputs.iter().any(|o| o.name != ctx.output && o.enabled) {
         return Ok(ParseResult::confirm_disable_list())
     }
-
+    
     // Otherwise, immediately disable.
-    Ok(ParseResult::enable(ctx.output))
-       
+    Ok(ParseResult::disable(ctx.output))
 }
 
 #[derive(Debug)]

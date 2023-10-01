@@ -263,6 +263,7 @@ impl super::DisplayBackend for Backend {
             .ok_or(super::err::Disable::NoOutput(output_name.to_string()))?;
 
         let cmd = format!("output {} disable", output.name);
+        print!("executing: {cmd}");
         let mut res = self.conn.run_command(cmd)
             .map_err(|e| backend_call_err!(Disable, SwayIPC, e))?;
         res.pop().unwrap()
