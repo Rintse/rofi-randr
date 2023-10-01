@@ -82,9 +82,6 @@ impl super::DisplayBackend for Backend {
             .find(|o| o.name == output)
             .ok_or(super::err::GetResolutions::NoOutput(output.to_string()))?;
 
-        eprintln!("output: {}", output.name);
-        eprintln!("modes: {:?}", output.modes);
-
         let current_mode_id = output.current_mode
             .ok_or(super::err::GetResolutions::GetCurrent)?;
 
