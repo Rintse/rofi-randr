@@ -1,25 +1,26 @@
+use super::{Action, ParseCtx, ParseResult};
+use crate::err::ParseError;
 use crate::AppError;
 use core::fmt;
-use crate::err::ParseError;
 use std::str::FromStr;
 use strum_macros::EnumIter;
-use super::{ParseResult, Action, ParseCtx};
 
-#[derive(Debug,Default,EnumIter)]
+#[derive(Debug, Default, EnumIter)]
 pub enum Rotation {
-    #[default] Normal,
-    Left,       // Counterclockwise
-    Right,      // Clockwise
-    Inverted    // Upside down
+    #[default]
+    Normal,
+    Left,     // Counterclockwise
+    Right,    // Clockwise
+    Inverted, // Upside down
 }
 
 impl From<&Rotation> for xrandr::Rotation {
-    fn from(r : &Rotation) -> Self {
+    fn from(r: &Rotation) -> Self {
         match r {
-            Rotation::Normal    => xrandr::Rotation::Normal,
-            Rotation::Left      => xrandr::Rotation::Left,
-            Rotation::Right     => xrandr::Rotation::Right,
-            Rotation::Inverted  => xrandr::Rotation::Inverted,
+            Rotation::Normal => xrandr::Rotation::Normal,
+            Rotation::Left => xrandr::Rotation::Left,
+            Rotation::Right => xrandr::Rotation::Right,
+            Rotation::Inverted => xrandr::Rotation::Inverted,
         }
     }
 }
@@ -27,10 +28,10 @@ impl From<&Rotation> for xrandr::Rotation {
 impl fmt::Display for Rotation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let pos_s = match self {
-            Rotation::Normal    => "Normal",
-            Rotation::Left      => "Left",
-            Rotation::Right     => "Right",
-            Rotation::Inverted  => "Inverted",
+            Rotation::Normal => "Normal",
+            Rotation::Left => "Left",
+            Rotation::Right => "Right",
+            Rotation::Inverted => "Inverted",
         };
 
         write!(f, "{pos_s} ")
@@ -39,20 +40,18 @@ impl fmt::Display for Rotation {
 
 impl Rotation {
     // Alternative phrasings for clarity
-    pub fn explain(&self) -> String { 
+    pub fn explain(&self) -> String {
         match self {
-            Rotation::Normal    => String::from("Upright"),
-            Rotation::Left      => String::from("Counterclockwise"),
-            Rotation::Right     => String::from("Clockwise"),
-            Rotation::Inverted  => String::from("upside down"),
+            Rotation::Normal => String::from("Upright"),
+            Rotation::Left => String::from("Counterclockwise"),
+            Rotation::Right => String::from("Clockwise"),
+            Rotation::Inverted => String::from("upside down"),
         }
     }
 
-    pub fn parse(ctx: ParseCtx) 
-    -> Result<ParseResult<Action>, AppError> 
-    {
+    pub fn parse(ctx: ParseCtx) -> Result<ParseResult<Action>, AppError> {
         let ParseCtx { output, mut args } = ctx;
-        
+
         Ok(match args.pop_front() {
             None => ParseResult::rotation_list(),
             Some(rot_s) => {
@@ -68,11 +67,11 @@ impl FromStr for Rotation {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "Normal"    => Ok(Rotation::Normal),
-            "Left"      => Ok(Rotation::Left),
-            "Right"     => Ok(Rotation::Right),
-            "Inverted"  => Ok(Rotation::Inverted),
-            _           => Err(Self::Err::Rotation(s.to_string()))
+            "Normal" => Ok(Rotation::Normal),
+            "Left" => Ok(Rotation::Left),
+            "Right" => Ok(Rotation::Right),
+            "Inverted" => Ok(Rotation::Inverted),
+            _ => Err(Self::Err::Rotation(s.to_string())),
         }
     }
 }
