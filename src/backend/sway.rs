@@ -85,6 +85,21 @@ impl super::DisplayBackend for Backend {
                     && m.height == current_mode.height })
             .collect::<Vec<ResolutionEntry>>();
 
+        // Sort on total pixels, then width.
+        // We need to sort before deduping because apparently the same
+        // resolution can appear twice with another resolution in between.
+        // No need for a height comparison, because heights must be equal if
+        // both px count and width are equal
+        let resolution_ord = |a: &ResolutionEntry, b: &ResolutionEntry| {
+            let px_count_ord = u32::cmp(
+                &(a.val.width * a.val.height), 
+                &(b.val.width * b.val.height));
+            let width_ord = u32::cmp( &a.val.width, &b.val.width);
+
+            px_count_ord.then(width_ord)
+        };
+
+        entries.sort_by(resolution_ord);
         entries.dedup_by(|a,b| 
             a.val.width == b.val.width && a.val.height == b.val.height);
 
