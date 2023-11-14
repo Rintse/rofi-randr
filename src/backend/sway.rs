@@ -47,33 +47,6 @@ fn run_sway_cmd(
     res.map(|_| ()).map_err(err_f)
 }
 
-// Normalizes all output's positions such that the top left corner is at (0,0)
-fn normalize_all_outputs(
-    outputs: &[swayipc::Output],
-    new_output: swayipc::Output,
-) -> Vec<swayipc::Output> {
-    // Build a new iterator of outputs based on the old and the new output
-    let new_outputs = outputs.iter()
-        .map(|o| if o.name == new_output.name { &new_output } else { o });
-
-    let left = new_outputs.clone()
-        .map(|o| o.rect.x)
-        .min()
-        .expect("There should be at least one output present");
-    let top = new_outputs.clone()
-        .map(|o| o.rect.y)
-        .min()
-        .expect("There should be at least one output present");
-
-    let offset_position = |o: &swayipc::Output| {
-        let mut output = o.clone();
-        output.rect.x -= left;
-        output.rect.y -= top;
-        output
-    };
-
-    new_outputs.map(offset_position).collect()
-}
 
 impl super::DisplayBackend for Backend {
     fn supported_operations(&mut self, output: &OutputEntry) -> Vec<Operation> {
@@ -325,6 +298,34 @@ impl super::DisplayBackend for Backend {
         output_name: &str,
         pos: &Position,
     ) -> Result<(), BackendError> {
+        // Normalizes all output's positions such that the top left corner is at (0,0)
+        fn normalize_all_outputs(
+            outputs: &[swayipc::Output],
+            new_output: swayipc::Output,
+        ) -> Vec<swayipc::Output> {
+            // Build a new iterator of outputs based on the old and the new output
+            let new_outputs = outputs.iter()
+                .map(|o| if o.name == new_output.name { &new_output } else { o });
+
+            let left = new_outputs.clone()
+                .map(|o| o.rect.x)
+                .min()
+                .expect("There should be at least one output present");
+            let top = new_outputs.clone()
+                .map(|o| o.rect.y)
+                .min()
+                .expect("There should be at least one output present");
+
+            let offset_position = |o: &swayipc::Output| {
+                let mut output = o.clone();
+                output.rect.x -= left;
+                output.rect.y -= top;
+                output
+            };
+
+            new_outputs.map(offset_position).collect()
+        }
+
         let Position {
             output_s: rel_output,
             relation,
