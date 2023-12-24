@@ -49,11 +49,12 @@ fn run_sway_cmd(
 
 // Normalizes all output's positions such that the top left is at (0,0)
 fn normalize_all_outputs<'a>(
-    outputs_it: impl Iterator< Item = &'a swayipc::Output> + std::clone::Clone,
+    outputs_it: impl Iterator<Item = &'a swayipc::Output> + std::clone::Clone,
 ) -> Vec<swayipc::Output> {
-    let (left, top): (i32, i32) = outputs_it.clone()
+    let (left, top): (i32, i32) = outputs_it
+        .clone()
         .map(|o| (o.rect.x, o.rect.y))
-        .reduce(|(x1,y1), (x2,y2)| (i32::min(x1,x2), i32::min(y1,y2)))
+        .reduce(|(x1, y1), (x2, y2)| (i32::min(x1, x2), i32::min(y1, y2)))
         .expect("There should always be at least one output");
 
     let offset_position = |o: &swayipc::Output| {
@@ -65,7 +66,6 @@ fn normalize_all_outputs<'a>(
 
     outputs_it.map(offset_position).collect()
 }
-
 
 impl super::DisplayBackend for Backend {
     fn supported_operations(&mut self, output: &OutputEntry) -> Vec<Operation> {
@@ -150,16 +150,18 @@ impl super::DisplayBackend for Backend {
         // both px count and width are equal
         let resolution_ord = |a: &ResolutionEntry, b: &ResolutionEntry| {
             let px_count_ord = u32::cmp(
-                &(a.val.width * a.val.height), 
-                &(b.val.width * b.val.height));
-            let width_ord = u32::cmp( &a.val.width, &b.val.width);
+                &(a.val.width * a.val.height),
+                &(b.val.width * b.val.height),
+            );
+            let width_ord = u32::cmp(&a.val.width, &b.val.width);
 
             px_count_ord.then(width_ord)
         };
 
         entries.sort_by(resolution_ord);
-        entries.dedup_by(|a,b| 
-            a.val.width == b.val.width && a.val.height == b.val.height);
+        entries.dedup_by(|a, b| {
+            a.val.width == b.val.width && a.val.height == b.val.height
+        });
 
         Ok(entries)
     }
@@ -317,15 +319,22 @@ impl super::DisplayBackend for Backend {
         output_name: &str,
         pos: &Position,
     ) -> Result<(), BackendError> {
-        let Position { output_s: rel_output, relation } = pos;
+        let Position {
+            output_s: rel_output,
+            relation,
+        } = pos;
 
-        let outputs = self.conn.get_outputs()
+        let outputs = self
+            .conn
+            .get_outputs()
             .map_err(|e| backend_call_err!(SetPosition, SwayIPC, e))?;
 
-        let output = outputs.iter()
+        let output = outputs
+            .iter()
             .find(|o| o.name == output_name)
             .ok_or(super::err::Enable::NoOutput(output_name.to_string()))?;
-        let rel_output = outputs.iter()
+        let rel_output = outputs
+            .iter()
             .find(|o| &o.name == rel_output)
             .ok_or(super::err::Enable::NoOutput(rel_output.to_string()))?;
 
@@ -346,22 +355,30 @@ impl super::DisplayBackend for Backend {
         new_output.rect.y = y;
 
         // New iterator of outputs based on the old and the new output
-        let new_outputs = outputs.iter().map(
-            |o| if o.name == new_output.name { &new_output } else { o } );
+        let new_outputs = outputs.iter().map(|o| {
+            if o.name == new_output.name {
+                &new_output
+            } else {
+                o
+            }
+        });
 
         // Always position the immediately affected output
         let normalized_outputs = normalize_all_outputs(new_outputs);
 
-        let cmds: Vec<String> = outputs.iter()
+        let cmds: Vec<String> = outputs
+            .iter()
             .zip(normalized_outputs.iter())
             .filter(|(old, new)| old.rect != new.rect)
             .map(|(_, new)| {
                 format!("output {} pos {} {}", new.name, new.rect.x, new.rect.y)
             })
             .collect();
-        
+
         // All outputs are already in the correct position
-        if cmds.is_empty() { return Ok(()) }
+        if cmds.is_empty() {
+            return Ok(());
+        }
 
         let err_f = |e| backend_call_err!(SetPosition, SwayIPC, e);
         let cmd = itertools::Itertools::join(&mut cmds.iter(), ";");
