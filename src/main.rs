@@ -34,7 +34,7 @@ fn get_args() -> VecDeque<String> {
     rofi_data
 }
 
-fn main() -> Result<(), AppError> {
+fn run() -> Result<(), AppError> {
     // Allow override of automatic backend trough env var
     let mut backend = match env::var("DISPLAY_SERVER_OVERRIDE") {
         Ok(name) => backend::from_name(&name)?,
@@ -49,4 +49,14 @@ fn main() -> Result<(), AppError> {
     }
 
     Ok(())
+}
+
+fn main() {
+    match run() {
+        Ok(_) => std::process::exit(0),
+        Err(e) => {
+            eprintln!("{e}");
+            std::process::exit(1)
+        }
+    }
 }
