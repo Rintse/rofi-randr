@@ -1,5 +1,4 @@
 // Top level errors
-
 use thiserror::Error;
 use xrandr::XrandrError;
 
@@ -42,7 +41,7 @@ pub enum AppError {
     #[error("Call to libxrandr failed")]
     Cmd,
 
-    #[error("Parsing of rofi input failed")]
+    #[error("{source}")]
     Parse {
         #[from]
         source: ParseError,

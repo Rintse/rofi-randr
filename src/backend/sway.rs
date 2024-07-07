@@ -48,23 +48,20 @@ fn run_sway_cmd(
 }
 
 // Normalizes all output's positions such that the top left is at (0,0)
-fn normalize_all_outputs<'a>(
-    outputs_it: impl Iterator<Item = &'a swayipc::Output> + std::clone::Clone,
-) -> Vec<swayipc::Output> {
-    let (left, top): (i32, i32) = outputs_it
-        .clone()
+fn normalize_all_outputs(outputs: &[&swayipc::Output]) -> Vec<swayipc::Output> {
+    let (left, top): (i32, i32) = outputs.iter()
         .map(|o| (o.rect.x, o.rect.y))
         .reduce(|(x1, y1), (x2, y2)| (i32::min(x1, x2), i32::min(y1, y2)))
         .expect("There should always be at least one output");
 
-    let offset_position = |o: &swayipc::Output| {
-        let mut output = o.clone();
+    let offset_position = |o: &&swayipc::Output| {
+        let mut output = (*o).clone();
         output.rect.x -= left;
         output.rect.y -= top;
         output
     };
 
-    outputs_it.map(offset_position).collect()
+    outputs.iter().map(offset_position).collect()
 }
 
 impl super::DisplayBackend for Backend {
@@ -342,7 +339,8 @@ impl super::DisplayBackend for Backend {
         let (rel_x, rel_y) = (rel_output.rect.x, rel_output.rect.y);
         let (rel_w, rel_h) = (rel_output.rect.width, rel_output.rect.height);
 
-        let (x, y) = match relation {
+        let mut new_output = output.clone();
+        (new_output.rect.x, new_output.rect.y) = match relation {
             Relation::LeftOf => (rel_x - w, rel_y),
             Relation::RightOf => (rel_x + rel_w, rel_y),
             Relation::Above => (rel_x, rel_y - h),
@@ -350,21 +348,14 @@ impl super::DisplayBackend for Backend {
             Relation::SameAs => (rel_x, rel_y),
         };
 
-        let mut new_output = output.clone();
-        new_output.rect.x = x;
-        new_output.rect.y = y;
-
         // New iterator of outputs based on the old and the new output
-        let new_outputs = outputs.iter().map(|o| {
-            if o.name == new_output.name {
-                &new_output
-            } else {
-                o
-            }
-        });
+        let new_outputs: Vec<&swayipc::Output> = outputs.iter()
+            .filter(|o| o.name != new_output.name)
+            .chain(std::iter::once(&new_output))
+            .collect();
 
         // Always position the immediately affected output
-        let normalized_outputs = normalize_all_outputs(new_outputs);
+        let normalized_outputs = normalize_all_outputs(&new_outputs);
 
         let cmds: Vec<String> = outputs
             .iter()

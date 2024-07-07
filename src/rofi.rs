@@ -43,6 +43,15 @@ impl ListItem {
 
         println!("{}{}\0{}", self.text, cmt, mods.join("\x1f"),);
     }
+
+    pub fn back() -> Self {
+        Self {
+            text: "Back".into(),
+            comments: vec!["previous menu".into()],
+            icon: Some(Icon::Back),
+            ..Default::default()
+        }
+    }
 }
 
 // List of options to show next
@@ -50,10 +59,13 @@ impl ListItem {
 pub struct List {
     pub prompt: Option<String>,
     pub message: Option<String>,
+    // Inverted from rofi-script due to more sensible `Default`
     pub allow_custom: bool,
     pub keep_selection: bool,
     pub no_markup: bool,
     pub list: Vec<ListItem>,
+    // Do not print a back entry in the list
+    pub no_back: bool,
 }
 
 impl List {
@@ -64,13 +76,27 @@ impl List {
 
         if let Some(msg) = &self.message {
             println!("\0message\x1f{msg}");
+        } else {
+            // This needs to be reset between lists
+            println!("\0message\x1f");
         };
 
-        println!("\0no-custom\x1f{}", self.allow_custom);
+        println!("\0no-custom\x1f{}", !self.allow_custom);
         println!("\0keep-selection\x1f{}", self.keep_selection);
         println!("\0markup-rows\x1f{}", !self.no_markup);
 
         self.list.iter().for_each(ListItem::rofi_print);
+        if !self.no_back {
+            ListItem::back().rofi_print();
+        }
+    }
+
+    pub fn error(msg: &str) -> Self {
+        Self {
+            prompt: Some("ERROR".into()),
+            message: Some(msg.to_string()),
+            ..Default::default()
+        }
     }
 }
 
@@ -173,6 +199,7 @@ impl ParseResult<Action> {
         Ok(Self::Next(List {
             prompt: Some("Select output".to_string()),
             list: outputs.iter().map(ListItem::from).collect(),
+            no_back: true,
             ..Default::default()
         }))
     }
@@ -263,7 +290,7 @@ impl ParseResult<Action> {
         }))
     }
 
-    // list_outputs not equal to o
+    // list_outputs not equal to `output`
     pub fn relatives_list(
         backend: &mut Box<dyn DisplayBackend>,
         output: &str,

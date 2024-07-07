@@ -8,29 +8,43 @@ use action::{Action, ParseResult};
 use err::AppError;
 
 use itertools::Itertools;
+use rofi::List;
 use std::{collections::VecDeque, env};
 
 fn get_args() -> VecDeque<String> {
     // ROFI_DATA env var contains the chosen arguments to the script so far
     let mut rofi_data: VecDeque<String> = match env::var("ROFI_DATA") {
         Err(_) => VecDeque::new(), // no args yet
-        Ok(data_s) => data_s.split(':').map(String::from).collect(),
+        Ok(data_s) => data_s
+            .split(':')
+            .filter(|s| !s.is_empty())
+            .map(String::from).collect(),
     };
 
     // The latest chosen argument is passed as arg to this program
     let arg = env::args().nth(1);
     if let Some(a) = arg {
         // Split on start of first pango tag:
-        // - only the comments have markup, so all that comes before is unput
+        // - only comments have markup, so all that comes before is unput
         // Unwrap: first element of a split always exists
-        rofi_data.push_back(a.split('<').next().unwrap().trim().to_string());
+        let input = a.split('<').next().unwrap().trim().to_string();
+
+        // If the user chose back, keep the data as it was the before
+        if input == "Back" {
+            rofi_data.pop_back();
+        } else {
+            rofi_data.push_back(input);
+        }
     }
+
 
     // Store choices made for next iteration
     if !rofi_data.is_empty() {
         println!("\0data\x1f{}", rofi_data.iter().join(":"));
+    } else {
+        println!("\0data\x1f"); // Reset in case of `Back`
     }
-
+    
     rofi_data
 }
 
@@ -53,9 +67,9 @@ fn run() -> Result<(), AppError> {
 
 fn main() {
     match run() {
-        Ok(_) => std::process::exit(0),
+        Ok(_) => { std::process::exit(0); }
         Err(e) => {
-            eprintln!("{e}");
+            List::error(&format!("{e}")).rofi_print();
             std::process::exit(1)
         }
     }

@@ -6,7 +6,6 @@ pub mod rotate;
 use crate::backend::DisplayBackend;
 use crate::backend::OutputEntry;
 use crate::rofi::List as RofiList;
-use itertools::Itertools;
 use std::collections::VecDeque;
 use std::fmt;
 
@@ -215,13 +214,7 @@ impl Action {
             "Position" => Position::parse(backend, ctx)?,
 
             // If not handled now, this is an invalid action
-            _ => {
-                return Err(ParseError::Operation(format!(
-                    "{} ({})",
-                    op_str,
-                    args.iter().join(", ")
-                )))?
-            }
+            _ => return Err(ParseError::Operation(op_str))?
         };
 
         Ok(action_p)

@@ -25,6 +25,7 @@ pub enum Icon {
 
     Apply,
     Cancel,
+    Back,
     #[default]
     None,
 }
@@ -62,6 +63,7 @@ impl Icon {
             // Confirmation
             Self::Apply => "dialog-apply",
             Self::Cancel => "dialog-cancel",
+            Self::Back => "back",
             Self::None => return String::new(),
         }
         .to_string()
