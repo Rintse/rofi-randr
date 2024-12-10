@@ -238,13 +238,6 @@ impl ParseResult<Action> {
                     icon: Some(Icon::Apply),
                     ..Default::default()
                 },
-                ListItem {
-                    text: "No".to_string(),
-                    comments: vec!["Quit to cancel".to_string()],
-                    icon: Some(Icon::Cancel),
-                    non_selectable: true,
-                    ..Default::default()
-                },
             ],
             ..Default::default()
         })
