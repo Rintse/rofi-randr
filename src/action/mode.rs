@@ -24,8 +24,6 @@ impl PartialOrd for Mode {
 
 impl Ord for Mode {
     // Sort on total pixels, then width, then rate.
-    // We need to sort before deduping because apparently the same
-    // resolution can appear twice with another resolution in between.
     // No need for a height comparison, because heights must be equal if
     // both px count and width are equal
     fn cmp(&self, other: &Self) -> Ordering {
@@ -46,25 +44,32 @@ impl FromStr for Mode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = Self::Err::Resolution(s.to_string());
 
-        let data: Vec<&str> = s.split('x').collect();
-        if data.len() != 2 {
-            return Err(err);
-        }
-
-        let size_res: Result<Vec<u32>, _> =
-            data.iter().map(|s| s.parse::<u32>()).collect();
-
-        let size = size_res.map_err(|_| err.clone())?;
-        let (width, height) = (size[0], size[1]);
-
-        let rate_s = s.split('@').nth(2).ok_or(err.clone())?;
+        let mut rate_split = s.split('@');
+        let resolution_s = rate_split.next().ok_or(err.clone())?;
+        let rate_s = rate_split.next().ok_or(err.clone())?;
         // Strip the " Hz" that was printed in the menu
         // see: From<&RateEntry> for ListItem
-        let rate_stripped = &rate_s[..rate_s.len() - 3];
+        let rate_stripped = &rate_s[..rate_s.len() - 2];
         let rate = f64::from_str(rate_stripped)
             .map_err(|_| ParseError::Rate(rate_s.to_string()))?;
 
-        Ok(Mode { width, height, rate })
+        let mut resolution_split = resolution_s.split('x');
+        let width = resolution_split
+            .next()
+            .ok_or(err.clone())?
+            .parse::<u32>()
+            .map_err(|_| err.clone())?;
+        let height = resolution_split
+            .next()
+            .ok_or(err.clone())?
+            .parse::<u32>()
+            .map_err(|_| err.clone())?;
+
+        Ok(Mode {
+            width,
+            height,
+            rate,
+        })
     }
 }
 

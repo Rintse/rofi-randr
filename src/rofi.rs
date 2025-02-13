@@ -85,7 +85,10 @@ impl List {
         println!("\0keep-selection\x1f{}", self.keep_selection);
         println!("\0markup-rows\x1f{}", !self.no_markup);
 
-        self.items.iter().for_each(ListItem::rofi_print);
+        for item in &self.items {
+            item.rofi_print()
+        }
+
         if !self.no_back {
             ListItem::back().rofi_print();
         }
@@ -235,10 +238,10 @@ impl ParseResult<Action> {
         output: &str,
     ) -> Result<Self, AppError> {
         let mut modes = backend.get_modes(output)?;
-        modes.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
+        modes.sort_by(|a, b| Mode::cmp(&a.val, &b.val).reverse());
 
         Ok(Self::Next(List {
-            prompt: Some("Select resolution ".to_string()),
+            prompt: Some("Select mode ".to_string()),
             message: Some(output.to_string()),
             items: modes.iter().map(ListItem::from).collect(),
             ..Default::default()

@@ -259,7 +259,7 @@ impl super::DisplayBackend for Backend {
             })
             .collect::<Vec<_>>();
 
-        entries.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
+        entries.sort_by(|a, b| Mode::cmp(&b.val, &a.val));
         entries.dedup();
         Ok(entries)
     }

@@ -24,7 +24,7 @@ impl Backend {
 // swayipc rates are frames per 1000 seconds with roughly 4 significant digits.
 // Any two rates with less than `RATE_EPSILON` difference are considered to be
 // equivalent
-const RATE_EPSILON: f64 = 0.01;
+const RATE_EPSILON: f64 = 0.1;
 
 // Helper function to deal with unwrapping the various layers of errors
 // that result from swayipc's run_command() function. Maps all the errors we
@@ -133,14 +133,15 @@ impl super::DisplayBackend for Backend {
                 val: Mode {
                     width: m.width as u32,
                     height: m.height as u32,
-                    rate: f64::from(m.refresh),
+                    rate: f64::from(m.refresh) / 1000.0,
                 },
-                current: m.width == current_mode.width
+                current: m.refresh == current_mode.refresh
+                    && m.width == current_mode.width
                     && m.height == current_mode.height,
             })
             .collect::<Vec<_>>();
 
-        entries.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
+        entries.sort_by(|a, b| a.val.cmp(&b.val).reverse());
         entries.dedup();
         Ok(entries)
     }
@@ -162,8 +163,8 @@ impl super::DisplayBackend for Backend {
             .modes
             .iter()
             .find(|m| {
-                (f64::from(m.refresh) - mode.rate).abs() < RATE_EPSILON
-                && m.width as u32 == mode.width
+                (f64::from(m.refresh) / 1000.0 - mode.rate).abs() <= RATE_EPSILON
+                    && m.width as u32 == mode.width
                     && m.height as u32 == mode.height
             })
             .ok_or(super::err::SetResolution::NoMode(mode.clone()))?;
