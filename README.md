@@ -27,8 +27,7 @@ The following features are supported:
 * Enable outputs
 * Disable outputs
 * Set primary output
-* Change resolution
-* Change refresh rate
+* Change mode
 * Position outputs
 * Rotate outputs
 

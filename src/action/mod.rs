@@ -1,6 +1,5 @@
 pub mod position;
-pub mod rate;
-pub mod resolution;
+pub mod mode;
 pub mod rotate;
 
 use crate::backend::DisplayBackend;
@@ -11,8 +10,7 @@ use std::fmt;
 
 use crate::action::position::Position;
 use crate::action::position::Relation;
-use crate::action::rate::parse as parse_rate;
-use crate::action::resolution::Resolution;
+use crate::action::mode::Mode;
 use crate::action::rotate::Rotation;
 use crate::err::AppError;
 use crate::err::ParseError;
@@ -22,9 +20,8 @@ pub enum Operation {
     Enable,
     Disable,
     SetPrimary,
-    ChangeRes(Resolution),
+    ChangeMode(Mode),
     Position(Position),
-    ChangeRate(f64),
     Rotate(Rotation),
 }
 
@@ -41,8 +38,7 @@ impl fmt::Display for Operation {
             Operation::Enable => "Enable",
             Operation::Disable => "Disable",
             Operation::SetPrimary => "Make primary",
-            Operation::ChangeRes(_) => "Change resolution",
-            Operation::ChangeRate(..) => "Change rate",
+            Operation::ChangeMode(_) => "Change mode",
             Operation::Position(_) => "Position",
             Operation::Rotate(_) => "Rotate",
         };
@@ -62,8 +58,7 @@ impl Action {
             Operation::Enable => backend.enable(output),
             Operation::Disable => backend.disable(output),
             Operation::SetPrimary => backend.set_primary(output),
-            Operation::ChangeRes(res) => backend.set_resolution(output, res),
-            Operation::ChangeRate(rate) => backend.set_rate(output, *rate),
+            Operation::ChangeMode(mode) => backend.set_mode(output, mode),
             Operation::Rotate(r) => backend.set_rotation(output, r),
             Operation::Position(p) => backend.set_position(output, p),
         }?)
@@ -106,19 +101,10 @@ impl ParseResult<Action> {
         })
     }
 
-    fn resolution(output: String, m: Resolution) -> Self {
+    fn mode(output: String, m: Mode) -> Self {
         Self::Done(Action {
             output,
-            op: Operation::ChangeRes(m),
-        })
-    }
-
-    // TODO: we currently need the cur_res because of the apply backend
-    // that just calls xrandr. Ideally we just contact the xrandr backend
-    fn rate(output: String, rate: f64) -> Self {
-        Self::Done(Action {
-            output,
-            op: Operation::ChangeRate(rate),
+            op: Operation::ChangeMode(m),
         })
     }
 
@@ -146,21 +132,21 @@ impl ParseResult<Action> {
 fn confirm_last_display_disable(
     outputs: &[OutputEntry],
     mut ctx: ParseCtx,
-) -> Result<ParseResult<Action>, AppError> {
+) -> ParseResult<Action> {
     if let Some(confirmation) = ctx.args.pop_front() {
         return match confirmation.as_str() {
-            "Yes" => Ok(ParseResult::disable(ctx.output)),
+            "Yes" => ParseResult::disable(ctx.output),
             _ => unreachable!("There should only be 'Yes' in previous menu"),
         };
     }
 
     // There are no other displays that are connected: prompt to confirm
     if !outputs.iter().any(|o| o.name != ctx.output && o.enabled) {
-        return Ok(ParseResult::confirm_disable_list());
+        return ParseResult::confirm_disable_list();
     }
 
     // Otherwise, immediately disable.
-    Ok(ParseResult::disable(ctx.output))
+    ParseResult::disable(ctx.output)
 }
 
 #[derive(Debug)]
@@ -204,13 +190,12 @@ impl Action {
         let action_p: ParseResult<Self> = match op_str.as_str() {
             // Nullary actions, return the action
             "Enable" => ParseResult::enable(ctx.output),
-            "Disable" => confirm_last_display_disable(&outputs, ctx)?,
+            "Disable" => confirm_last_display_disable(&outputs, ctx),
             "Make primary" => ParseResult::primary(ctx.output),
 
             // Unary/binary, parse further
-            "Change resolution" => Resolution::parse(backend, ctx)?,
+            "Change mode" => Mode::parse(backend, ctx)?,
             "Rotate" => Rotation::parse(ctx)?,
-            "Change rate" => parse_rate(backend, ctx)?,
             "Position" => Position::parse(backend, ctx)?,
 
             // If not handled now, this is an invalid action

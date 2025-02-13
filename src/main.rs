@@ -39,10 +39,10 @@ fn get_args() -> VecDeque<String> {
 
 
     // Store choices made for next iteration
-    if !rofi_data.is_empty() {
-        println!("\0data\x1f{}", rofi_data.iter().join(":"));
-    } else {
+    if rofi_data.is_empty() {
         println!("\0data\x1f"); // Reset in case of `Back`
+    } else {
+        println!("\0data\x1f{}", rofi_data.iter().join(":"));
     }
     
     rofi_data
@@ -67,7 +67,7 @@ fn run() -> Result<(), AppError> {
 
 fn main() {
     match run() {
-        Ok(_) => { std::process::exit(0); }
+        Ok(()) => { std::process::exit(0); }
         Err(e) => {
             List::error(&format!("{e}")).rofi_print();
             std::process::exit(1)

@@ -1,15 +1,13 @@
+use super::{ModeEntry, OutputEntry};
+use crate::action::mode::Mode;
 use crate::action::position::Position;
 use crate::action::position::Relation;
-use crate::action::rate::Rate;
-use crate::action::resolution::Resolution;
 use crate::action::rotate::Rotation;
 use crate::action::Operation;
 use crate::backend::Error as BackendError;
 use crate::backend_call as backend_call_err;
 use xrandr::ScreenResources;
 use xrandr::XHandle;
-
-use super::{OutputEntry, RateEntry, ResolutionEntry};
 
 pub struct Backend {
     handle: XHandle,
@@ -44,9 +42,8 @@ impl super::DisplayBackend for Backend {
             _ => vec![
                 Operation::Disable,
                 Operation::SetPrimary,
-                Operation::ChangeRes(Resolution::default()),
+                Operation::ChangeMode(Mode::default()),
                 Operation::Position(Position::default()),
-                Operation::ChangeRate(Rate::default()),
                 Operation::Rotate(Rotation::default()),
             ],
         }
@@ -80,10 +77,10 @@ impl super::DisplayBackend for Backend {
         Ok(entries)
     }
 
-    fn get_resolutions(
+    fn get_modes(
         &mut self,
         output: &str,
-    ) -> Result<Vec<ResolutionEntry>, BackendError> {
+    ) -> Result<Vec<ModeEntry>, BackendError> {
         let outputs = self
             .res
             .outputs(&mut self.handle)
@@ -108,30 +105,26 @@ impl super::DisplayBackend for Backend {
             .modes()
             .iter()
             .filter(|m| output.modes.contains(&m.xid))
-            .map(|m| ResolutionEntry {
-                val: Resolution {
+            .map(|m| ModeEntry {
+                val: Mode {
                     width: m.width,
                     height: m.height,
+                    rate: m.rate,
                 },
                 current: m.width == current_mode.width
                     && m.height == current_mode.height,
             })
-            .collect::<Vec<ResolutionEntry>>();
+            .collect::<Vec<ModeEntry>>();
 
-        entries.sort_by(|a, b| {
-            u32::cmp(
-                &(b.val.width * b.val.height),
-                &(a.val.width * a.val.height),
-            )
-        });
+        entries.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
         entries.dedup();
         Ok(entries)
     }
 
-    fn set_resolution(
+    fn set_mode(
         &mut self,
         output_name: &str,
-        res: &Resolution,
+        mode: &Mode,
     ) -> Result<(), BackendError> {
         let outputs = self
             .res
@@ -147,92 +140,16 @@ impl super::DisplayBackend for Backend {
             .modes
             .iter()
             .filter(|m| output.modes.contains(&m.xid))
-            .find(|m| m.width == res.width && m.height == res.height)
-            .ok_or(super::err::SetResolution::NoMode(res.clone()))?;
+            .find(|m| {
+                (m.rate - mode.rate).abs() < RATE_EPSILON
+                    && m.width == mode.width
+                    && m.height == mode.height
+            })
+            .ok_or(super::err::SetResolution::NoMode(mode.clone()))?;
 
         self.handle
             .set_mode(output, target_mode)
             .map_err(|e| backend_call_err!(GetResolutions, LibXrandr, e))?;
-
-        Ok(())
-    }
-
-    fn get_rates(
-        &mut self,
-        output_name: &str,
-    ) -> Result<Vec<RateEntry>, BackendError> {
-        let outputs = self
-            .res
-            .outputs(&mut self.handle)
-            .map_err(|e| backend_call_err!(GetRates, LibXrandr, e))?;
-
-        let output = outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::GetRates::NoOutput(output_name.to_string()))?;
-
-        let current_mode_id = output
-            .current_mode
-            .ok_or(super::err::GetRates::GetCurrent)?;
-        let current_mode = self
-            .res
-            .mode(current_mode_id)
-            .map_err(|_| super::err::GetRates::GetCurrent)?;
-
-        let entries = self
-            .res
-            .modes()
-            .iter()
-            .filter(|m| output.modes.contains(&m.xid))
-            .filter(|m| {
-                m.height == current_mode.height && m.width == current_mode.width
-            })
-            .map(|m| RateEntry {
-                val: m.rate,
-                current: (m.rate - current_mode.rate).abs() < RATE_EPSILON,
-            })
-            .collect();
-
-        Ok(entries)
-    }
-
-    fn set_rate(
-        &mut self,
-        output_name: &str,
-        rate: Rate,
-    ) -> Result<(), BackendError> {
-        let outputs = self
-            .res
-            .outputs(&mut self.handle)
-            .map_err(|e| backend_call_err!(SetRate, LibXrandr, e))?;
-        let output = outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::SetRate::NoOutput(output_name.to_string()))?;
-
-        let current_mode_id = output
-            .current_mode
-            .ok_or(super::err::SetRate::NoMode(output.name.clone()))?;
-        let current_mode = self
-            .res
-            .mode(current_mode_id)
-            .map_err(|_| super::err::SetRate::NoMode(output.name.clone()))?;
-
-        let target_mode = self
-            .res
-            .modes
-            .iter()
-            .filter(|m| output.modes.contains(&m.xid))
-            .find(|m| {
-                m.width == current_mode.width
-                    && m.height == current_mode.height
-                    && (m.rate - rate).abs() < RATE_EPSILON
-            })
-            .ok_or(super::err::SetRate::NoRate(rate))?;
-
-        self.handle
-            .set_mode(output, target_mode)
-            .map_err(|e| backend_call_err!(SetRate, LibXrandr, e))?;
 
         Ok(())
     }

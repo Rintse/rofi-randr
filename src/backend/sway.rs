@@ -1,13 +1,12 @@
+use crate::action::mode::Mode;
 use crate::action::position::Relation;
-use crate::action::rate::Rate;
-use crate::action::resolution::Resolution;
 use crate::action::rotate::Rotation;
 use crate::action::{position::Position, Operation};
 use crate::backend::Error as BackendError;
 use crate::backend_call as backend_call_err;
 use swayipc::Connection;
 
-use super::{OutputEntry, RateEntry, ResolutionEntry};
+use super::{ModeEntry, OutputEntry};
 
 pub struct Backend {
     conn: Connection,
@@ -49,7 +48,8 @@ fn run_sway_cmd(
 
 // Normalizes all output's positions such that the top left is at (0,0)
 fn normalize_all_outputs(outputs: &[&swayipc::Output]) -> Vec<swayipc::Output> {
-    let (left, top): (i32, i32) = outputs.iter()
+    let (left, top): (i32, i32) = outputs
+        .iter()
         .map(|o| (o.rect.x, o.rect.y))
         .reduce(|(x1, y1), (x2, y2)| (i32::min(x1, x2), i32::min(y1, y2)))
         .expect("There should always be at least one output");
@@ -76,9 +76,8 @@ impl super::DisplayBackend for Backend {
 
             _ => vec![
                 Operation::Disable,
-                Operation::ChangeRes(Resolution::default()),
+                Operation::ChangeMode(Mode::default()),
                 Operation::Position(Position::default()),
-                Operation::ChangeRate(Rate::default()),
                 Operation::Rotate(Rotation::default()),
             ],
         }
@@ -111,10 +110,10 @@ impl super::DisplayBackend for Backend {
         Ok(entries)
     }
 
-    fn get_resolutions(
+    fn get_modes(
         &mut self,
         output_name: &str,
-    ) -> Result<Vec<ResolutionEntry>, BackendError> {
+    ) -> Result<Vec<ModeEntry>, BackendError> {
         let outputs = self
             .conn
             .get_outputs()
@@ -130,43 +129,26 @@ impl super::DisplayBackend for Backend {
         let mut entries = output
             .modes
             .iter()
-            .map(|m| ResolutionEntry {
-                val: Resolution {
+            .map(|m| ModeEntry {
+                val: Mode {
                     width: m.width as u32,
                     height: m.height as u32,
+                    rate: f64::from(m.refresh),
                 },
                 current: m.width == current_mode.width
                     && m.height == current_mode.height,
             })
-            .collect::<Vec<ResolutionEntry>>();
+            .collect::<Vec<_>>();
 
-        // Sort on total pixels, then width.
-        // We need to sort before deduping because apparently the same
-        // resolution can appear twice with another resolution in between.
-        // No need for a height comparison, because heights must be equal if
-        // both px count and width are equal
-        let resolution_ord = |a: &ResolutionEntry, b: &ResolutionEntry| {
-            let px_count_ord = u32::cmp(
-                &(a.val.width * a.val.height),
-                &(b.val.width * b.val.height),
-            );
-            let width_ord = u32::cmp(&a.val.width, &b.val.width);
-
-            px_count_ord.then(width_ord)
-        };
-
-        entries.sort_by(resolution_ord);
-        entries.dedup_by(|a, b| {
-            a.val.width == b.val.width && a.val.height == b.val.height
-        });
-
+        entries.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
+        entries.dedup();
         Ok(entries)
     }
 
-    fn set_resolution(
+    fn set_mode(
         &mut self,
         output_name: &str,
-        res: &Resolution,
+        mode: &Mode,
     ) -> Result<(), BackendError> {
         let outputs = self
             .conn
@@ -180,9 +162,11 @@ impl super::DisplayBackend for Backend {
             .modes
             .iter()
             .find(|m| {
-                m.width as u32 == res.width && m.height as u32 == res.height
+                (f64::from(m.refresh) - mode.rate).abs() < RATE_EPSILON
+                && m.width as u32 == mode.width
+                    && m.height as u32 == mode.height
             })
-            .ok_or(super::err::SetResolution::NoMode(res.clone()))?;
+            .ok_or(super::err::SetResolution::NoMode(mode.clone()))?;
 
         let mode_str = format!(
             "{}x{}@{}Hz",
@@ -201,85 +185,6 @@ impl super::DisplayBackend for Backend {
             .map_err(|e| backend_call_err!(SetResolution, SwayIPC, e))?;
 
         Ok(())
-    }
-
-    fn get_rates(
-        &mut self,
-        output_name: &str,
-    ) -> Result<Vec<RateEntry>, BackendError> {
-        let outputs = self
-            .conn
-            .get_outputs()
-            .map_err(|e| backend_call_err!(GetRates, SwayIPC, e))?;
-        let output = outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::GetRates::NoOutput(output_name.to_string()))?;
-
-        let current_mode = output
-            .current_mode
-            .ok_or(super::err::GetRates::GetCurrent)?;
-
-        let mut entries = output
-            .modes
-            .iter()
-            .filter(|m| {
-                m.height == current_mode.height && m.width == current_mode.width
-            })
-            .map(|m| RateEntry {
-                val: f64::from(m.refresh) / 1000.0,
-                current: m.refresh == current_mode.refresh,
-            })
-            .collect::<Vec<RateEntry>>();
-
-        // TODO: why is this needed?
-        // swaymsg -t get_outputs seems to have aspect ratios next to the
-        // duplicate modes, but swayipc::Mode does not seem to distinguish
-        entries.dedup_by(|a, b| (a.val - b.val).abs() < RATE_EPSILON);
-
-        Ok(entries)
-    }
-
-    fn set_rate(
-        &mut self,
-        output_name: &str,
-        rate: Rate,
-    ) -> Result<(), BackendError> {
-        let outputs = self
-            .conn
-            .get_outputs()
-            .map_err(|e| backend_call_err!(SetRate, SwayIPC, e))?;
-        let output = outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::SetRate::NoOutput(output_name.to_string()))?;
-
-        let current_mode = output
-            .current_mode
-            .ok_or(super::err::SetRate::NoMode(output_name.to_string()))?;
-
-        let target_mode = output
-            .modes
-            .iter()
-            .find(|m| {
-                m.width as u32 == current_mode.width as u32
-                    && m.height as u32 == current_mode.height as u32
-                    && ((f64::from(m.refresh) / 1000.0) - rate).abs()
-                        < RATE_EPSILON
-            })
-            .ok_or(super::err::SetRate::NoRate(rate))?;
-
-        let mode_str = format!(
-            "{}x{}@{}Hz",
-            target_mode.width,
-            target_mode.height,
-            f64::from(target_mode.refresh) / 1000.0
-        );
-
-        let err_f = |e| backend_call_err!(SetRate, SwayIPC, e);
-        let cmd = format!("output {} mode {}", output.name, mode_str);
-
-        run_sway_cmd(&mut self.conn, cmd, err_f)
     }
 
     fn set_rotation(
@@ -349,7 +254,8 @@ impl super::DisplayBackend for Backend {
         };
 
         // New iterator of outputs based on the old and the new output
-        let new_outputs: Vec<&swayipc::Output> = outputs.iter()
+        let new_outputs: Vec<&swayipc::Output> = outputs
+            .iter()
             .filter(|o| o.name != new_output.name)
             .chain(std::iter::once(&new_output))
             .collect();

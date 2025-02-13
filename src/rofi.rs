@@ -2,11 +2,11 @@
 // print lists in the format that rofi understands.
 use strum::IntoEnumIterator;
 
-use crate::action::resolution::Resolution;
+use crate::action::mode::Mode;
 use crate::action::{
     position::Relation, rotate::Rotation, Action, Operation, ParseResult,
 };
-use crate::backend::{DisplayBackend, OutputEntry, RateEntry, ResolutionEntry};
+use crate::backend::{DisplayBackend, ModeEntry, OutputEntry};
 use crate::err::AppError;
 use crate::icon::Icon;
 
@@ -63,7 +63,7 @@ pub struct List {
     pub allow_custom: bool,
     pub keep_selection: bool,
     pub no_markup: bool,
-    pub list: Vec<ListItem>,
+    pub items: Vec<ListItem>,
     // Do not print a back entry in the list
     pub no_back: bool,
 }
@@ -85,7 +85,7 @@ impl List {
         println!("\0keep-selection\x1f{}", self.keep_selection);
         println!("\0markup-rows\x1f{}", !self.no_markup);
 
-        self.list.iter().for_each(ListItem::rofi_print);
+        self.items.iter().for_each(ListItem::rofi_print);
         if !self.no_back {
             ListItem::back().rofi_print();
         }
@@ -152,34 +152,22 @@ impl From<Rotation> for ListItem {
     }
 }
 
-impl From<&ResolutionEntry> for ListItem {
-    fn from(res_entry: &ResolutionEntry) -> Self {
-        let comments = if res_entry.current {
+impl From<&ModeEntry> for ListItem {
+    fn from(mode_entry: &ModeEntry) -> Self {
+        let comments = if mode_entry.current {
             vec!["Current".to_string()]
         } else {
             Vec::new()
         };
 
         ListItem {
-            text: format!("{}x{}", res_entry.val.width, res_entry.val.height),
+            text: format!(
+                "{}x{}@{:.2}Hz",
+                mode_entry.val.width,
+                mode_entry.val.height,
+                mode_entry.val.rate
+            ),
             icon: Some(Icon::Fitsize),
-            comments,
-            ..Default::default()
-        }
-    }
-}
-
-impl From<&RateEntry> for ListItem {
-    fn from(rate_entry: &RateEntry) -> Self {
-        let comments = if rate_entry.current {
-            vec!["Current".to_string()]
-        } else {
-            Vec::new()
-        };
-
-        ListItem {
-            text: format!("{:.2} Hz", rate_entry.val),
-            icon: Some(Icon::Rate),
             comments,
             ..Default::default()
         }
@@ -198,7 +186,7 @@ impl ParseResult<Action> {
 
         Ok(Self::Next(List {
             prompt: Some("Select output".to_string()),
-            list: outputs.iter().map(ListItem::from).collect(),
+            items: outputs.iter().map(ListItem::from).collect(),
             no_back: true,
             ..Default::default()
         }))
@@ -214,7 +202,7 @@ impl ParseResult<Action> {
 
         Self::Next(List {
             prompt: Some("Select position".to_string()),
-            list,
+            items: list,
             ..Default::default()
         })
     }
@@ -223,7 +211,7 @@ impl ParseResult<Action> {
     pub fn rotation_list() -> Self {
         Self::Next(List {
             prompt: Some("Select rotation".to_string()),
-            list: Rotation::iter().map(ListItem::from).collect(),
+            items: Rotation::iter().map(ListItem::from).collect(),
             ..Default::default()
         })
     }
@@ -232,53 +220,27 @@ impl ParseResult<Action> {
     pub fn confirm_disable_list() -> Self {
         Self::Next(List {
             prompt: Some("Disable last active output?".to_string()),
-            list: vec![
-                ListItem {
-                    text: "Yes".to_string(),
-                    icon: Some(Icon::Apply),
-                    ..Default::default()
-                },
-            ],
+            items: vec![ListItem {
+                text: "Yes".to_string(),
+                icon: Some(Icon::Apply),
+                ..Default::default()
+            }],
             ..Default::default()
         })
     }
 
-    // Possible rates for the current resolution of the given output
-    pub fn rate_list(
-        backend: &mut Box<dyn DisplayBackend>,
-        output: &str,
-    ) -> Result<Self, AppError> {
-        let mut rates = backend.get_rates(output)?;
-
-        rates.sort_by(|a, b| f64::total_cmp(&b.val, &a.val));
-
-        Ok(Self::Next(List {
-            prompt: Some("Select rate".to_string()),
-            list: rates.iter().map(ListItem::from).collect(),
-            ..Default::default()
-        }))
-    }
-
     // Available resolutions for the given output
-    pub fn resolution_list(
+    pub fn mode_list(
         backend: &mut Box<dyn DisplayBackend>,
         output: &str,
     ) -> Result<Self, AppError> {
-        let mut resolutions = backend.get_resolutions(output)?;
-
-        // Sort (reversed) by total pixel count
-        let res_cmp = |m1: &Resolution, m2: &Resolution| {
-            u64::cmp(
-                &(u64::from(m1.width) * u64::from(m1.height)),
-                &(u64::from(m2.width) * u64::from(m2.height)),
-            )
-        };
-        resolutions.sort_by(|a, b| res_cmp(&b.val, &a.val));
+        let mut modes = backend.get_modes(output)?;
+        modes.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
 
         Ok(Self::Next(List {
             prompt: Some("Select resolution ".to_string()),
             message: Some(output.to_string()),
-            list: resolutions.iter().map(ListItem::from).collect(),
+            items: modes.iter().map(ListItem::from).collect(),
             ..Default::default()
         }))
     }
@@ -312,7 +274,7 @@ impl ParseResult<Action> {
         Ok(Self::Next(List {
             prompt: Some("Select output".to_string()),
             message: Some(format!("{output} ({relation}...)")),
-            list,
+            items: list,
             ..Default::default()
         }))
     }
@@ -328,7 +290,7 @@ impl ParseResult<Action> {
         Self::Next(List {
             prompt: Some("Select operation".to_string()),
             message: Some(output.name.clone()),
-            list: op_list,
+            items: op_list,
             ..Default::default()
         })
     }

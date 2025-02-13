@@ -2,7 +2,7 @@
 use thiserror::Error;
 use xrandr::XrandrError;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Clone)]
 pub enum ParseError {
     #[error("Invalid resolution: {0}")]
     Resolution(String),

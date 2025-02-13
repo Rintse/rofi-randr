@@ -3,18 +3,17 @@ use std::io::BufRead;
 
 use crate::action::position::Position;
 use crate::action::position::Relation;
-use crate::action::rate::Rate;
-use crate::action::resolution::Resolution;
+use crate::action::mode::Mode;
 use crate::action::rotate::Rotation;
 use crate::action::Operation;
 use crate::backend::Error as BackendError;
 use crate::backend_call as backend_call_err;
 
-use super::{OutputEntry, RateEntry, ResolutionEntry};
+use super::{OutputEntry, ModeEntry};
 
 // Structs to parse the xrandr output into
 #[derive(Debug, Clone)]
-struct Mode {
+struct XMode {
     width: u32,
     height: u32,
     rate: f64,
@@ -25,7 +24,7 @@ struct Output {
     name: String,
     connected: bool,
     enabled: bool,
-    modes: Vec<Mode>,
+    modes: Vec<XMode>,
 }
 
 /// **NOTE:** this is an experimental backend for testing and is not
@@ -54,11 +53,11 @@ fn parse_mode_line(line: &str) -> (&str, Vec<&str>) {
 
     while i < line.len() {
         while i < line.len() && is_num(line.chars().nth(i).unwrap()) {
-            i += 1
+            i += 1;
         }
 
         while i < line.len() && !is_num(line.chars().nth(i).unwrap()) {
-            i += 1
+            i += 1;
         }
         let end = if i == line.len() { i } else { i - 1 };
         rates.push(line.get(start..end).unwrap().trim());
@@ -100,7 +99,7 @@ impl XrandrState {
             let connected = words.pop_front() == Some("connected");
 
             let mut enabled = false;
-            let mut modes: Vec<Mode> = Vec::new();
+            let mut modes: Vec<XMode> = Vec::new();
 
             while !lines.is_empty()
                 && lines.front().unwrap().get(..3) == Some("   ")
@@ -122,7 +121,7 @@ impl XrandrState {
                         enabled = true;
                     }
 
-                    modes.push(Mode {
+                    modes.push(XMode {
                         width,
                         height,
                         rate,
@@ -158,9 +157,9 @@ pub trait Xcl {
     fn xcl(&self) -> String;
 }
 
-impl Xcl for Resolution {
+impl Xcl for Mode {
     fn xcl(&self) -> String {
-        format!("{}x{}", self.width, self.height)
+        format!("{}x{}@{}", self.width, self.height, self.rate)
     }
 }
 
@@ -187,8 +186,6 @@ impl Xcl for Relation {
     }
 }
 
-const RATE_EPSILON: f64 = 0.01; // xrandr rates are rounded to 2 decimals
-
 impl super::DisplayBackend for Backend {
     fn supported_operations(&mut self, output: &OutputEntry) -> Vec<Operation> {
         match (output.connected, output.enabled) {
@@ -204,9 +201,8 @@ impl super::DisplayBackend for Backend {
             _ => vec![
                 Operation::Disable,
                 Operation::SetPrimary,
-                Operation::ChangeRes(Resolution::default()),
+                Operation::ChangeMode(Mode::default()),
                 Operation::Position(Position::default()),
-                Operation::ChangeRate(Rate::default()),
                 Operation::Rotate(Rotation::default()),
             ],
         }
@@ -237,10 +233,10 @@ impl super::DisplayBackend for Backend {
         Ok(entries)
     }
 
-    fn get_resolutions(
+    fn get_modes(
         &mut self,
         output_name: &str,
-    ) -> Result<Vec<ResolutionEntry>, BackendError> {
+    ) -> Result<Vec<ModeEntry>, BackendError> {
         let output = self
             .state
             .outputs
@@ -253,93 +249,30 @@ impl super::DisplayBackend for Backend {
         let mut entries = output
             .modes
             .iter()
-            .map(|m| ResolutionEntry {
-                val: Resolution {
+            .map(|m| ModeEntry {
+                val: Mode {
                     width: m.width,
                     height: m.height,
+                    rate: m.rate,
                 },
                 current: m.current,
             })
-            .collect::<Vec<ResolutionEntry>>();
+            .collect::<Vec<_>>();
 
-        entries.dedup_by(|a, b| {
-            a.val.width == b.val.width && a.val.height == b.val.height
-        });
-
+        entries.sort_by(|a, b| Mode::cmp(&a.val, &b.val));
+        entries.dedup();
         Ok(entries)
     }
 
-    fn set_resolution(
+    fn set_mode(
         &mut self,
         output_name: &str,
-        res: &Resolution,
+        mode: &Mode,
     ) -> Result<(), BackendError> {
         let mut cmd = std::process::Command::new("xrandr");
-        let cmd = cmd.args(["--output", output_name, "--mode", &res.xcl()]);
+        let cmd = cmd.args(["--output", output_name, "--mode", &mode.xcl()]);
 
         let err_f = |s: String| backend_call_err!(SetResolution, XrandrCLI, s);
-        run_cmd_and_check(cmd, err_f)
-    }
-
-    fn get_rates(
-        &mut self,
-        output_name: &str,
-    ) -> Result<Vec<RateEntry>, BackendError> {
-        let output = self
-            .state
-            .outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::GetRates::NoOutput(output_name.to_string()))?;
-
-        let current_mode = output
-            .modes
-            .iter()
-            .find(|m| m.current)
-            .ok_or(super::err::GetRates::GetCurrent)?;
-
-        let entries = output
-            .modes
-            .iter()
-            .filter(|m| {
-                m.height == current_mode.height && m.width == current_mode.width
-            })
-            .map(|m| RateEntry {
-                val: m.rate,
-                current: (m.rate - current_mode.rate).abs() < RATE_EPSILON,
-            })
-            .collect();
-
-        Ok(entries)
-    }
-
-    fn set_rate(
-        &mut self,
-        output_name: &str,
-        rate: Rate,
-    ) -> Result<(), BackendError> {
-        let mut cmd = std::process::Command::new("xrandr");
-        let cur_res = self
-            .state
-            .outputs
-            .iter()
-            .find(|o| o.name == output_name)
-            .ok_or(super::err::SetRate::NoOutput(output_name.to_string()))?
-            .modes
-            .iter()
-            .find(|m| m.current)
-            .ok_or(super::err::SetRate::NoMode(output_name.to_string()))?;
-
-        let cmd = cmd.args([
-            "--output",
-            output_name,
-            "--mode",
-            &format!("{}x{}", cur_res.width, cur_res.height),
-            "--rate",
-            &rate.to_string(),
-        ]);
-
-        let err_f = |s: String| backend_call_err!(SetRate, XrandrCLI, s);
         run_cmd_and_check(cmd, err_f)
     }
 

@@ -5,8 +5,7 @@ mod xrandr_cli;
 
 pub(crate) use self::err::Error;
 use crate::action::position::{Position, Relation};
-use crate::action::rate::Rate;
-use crate::action::resolution::Resolution;
+use crate::action::mode::Mode;
 use crate::action::rotate::Rotation;
 use crate::action::Operation;
 use std::env;
@@ -47,21 +46,16 @@ pub trait DisplayBackend {
 
     fn get_outputs(&mut self) -> Result<Vec<OutputEntry>, Error>;
 
-    fn get_resolutions(
+    fn get_modes(
         &mut self,
         output_name: &str,
-    ) -> Result<Vec<ResolutionEntry>, Error>;
+    ) -> Result<Vec<ModeEntry>, Error>;
 
-    fn set_resolution(
+    fn set_mode(
         &mut self,
         output_name: &str,
-        res: &Resolution,
+        res: &Mode,
     ) -> Result<(), Error>;
-
-    fn get_rates(&mut self, output_name: &str)
-        -> Result<Vec<RateEntry>, Error>;
-
-    fn set_rate(&mut self, output_name: &str, rate: Rate) -> Result<(), Error>;
 
     fn set_rotation(
         &mut self,
@@ -90,13 +84,7 @@ pub struct OutputEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ResolutionEntry {
-    pub val: Resolution,
-    pub current: bool,
-}
-
-#[derive(Debug, Clone)]
-pub struct RateEntry {
-    pub val: Rate,
+pub struct ModeEntry {
+    pub val: Mode,
     pub current: bool,
 }

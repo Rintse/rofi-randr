@@ -1,4 +1,4 @@
-use crate::action::{rate::Rate, resolution::Resolution};
+use crate::action::mode::Mode;
 
 #[derive(thiserror::Error, Debug)]
 pub enum BackendCall {
@@ -50,8 +50,8 @@ pub enum SetResolution {
     #[error("Could not find requested output ({0})")]
     NoOutput(String),
 
-    #[error("Could not find mode with requested resolution ({0:?})")]
-    NoMode(Resolution),
+    #[error("Could not find mode with requested values ({0:?})")]
+    NoMode(Mode),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -76,9 +76,6 @@ pub enum SetRate {
 
     #[error("Output '{0}' has no current mode")]
     NoMode(String),
-
-    #[error("Could not find requested rate ({0})")]
-    NoRate(Rate),
 }
 
 #[derive(thiserror::Error, Debug)]

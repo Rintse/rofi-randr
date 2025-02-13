@@ -99,9 +99,8 @@ impl From<Operation> for Icon {
             Operation::Enable => Icon::Connected,
             Operation::Disable => Icon::Disable,
             Operation::SetPrimary => Icon::Primary,
-            Operation::ChangeRes(_) => Icon::Mode,
+            Operation::ChangeMode(_) => Icon::Mode,
             Operation::Position(_) => Icon::Position,
-            Operation::ChangeRate(..) => Icon::Rate,
             Operation::Rotate(_) => Icon::Rotate,
         }
     }
