@@ -86,7 +86,7 @@ impl List {
         println!("\0markup-rows\x1f{}", !self.no_markup);
 
         for item in &self.items {
-            item.rofi_print()
+            item.rofi_print();
         }
 
         if !self.no_back {
@@ -165,7 +165,7 @@ impl From<&ModeEntry> for ListItem {
 
         ListItem {
             text: format!(
-                "{}x{}@{:.2}Hz",
+                "{}x{} @{:.2}Hz",
                 mode_entry.val.width,
                 mode_entry.val.height,
                 mode_entry.val.rate

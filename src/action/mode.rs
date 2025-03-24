@@ -44,7 +44,7 @@ impl FromStr for Mode {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let err = Self::Err::Resolution(s.to_string());
 
-        let mut rate_split = s.split('@');
+        let mut rate_split = s.split(" @");
         let resolution_s = rate_split.next().ok_or(err.clone())?;
         let rate_s = rate_split.next().ok_or(err.clone())?;
         // Strip the " Hz" that was printed in the menu
